@@ -5,6 +5,7 @@ GAIA_VERSION := v6.0.0
 AKASH_VERSION := v0.12.1
 OSMOSIS_VERSION := v6.0.0
 WASMD_VERSION := v0.16.0
+SOMM_VERSION := v1.0.0
 
 GOPATH := $(shell go env GOPATH)
 GOBIN := $(GOPATH)/bin
@@ -97,6 +98,13 @@ build-akash:
 get-akash:
 	@mkdir -p ./chain-code/
 	@git clone --branch $(AKASH_VERSION) git@github.com:ovrclk/akash.git ./chain-code/akash
+
+get-somm:
+	@mkdir -p ./chain-code/
+	@git clone --branch jack/test-ibc-forward https://github.com/PeggyJV/sommelier ./chain-code/sommelier
+
+build-somm:
+	@./scripts/build-somm
 
 get-chains: get-gaia get-akash get-wasmd
 
