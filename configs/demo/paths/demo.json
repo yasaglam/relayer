@@ -10,6 +10,5 @@
     "port-id": "transfer",
     "order": "unordered",
     "version": "ics20-1"
-  },
-  "strategy": { "type": "naive" }
+  }
 }

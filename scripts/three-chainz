@@ -15,12 +15,21 @@ if ! [ -x "$(which sommelier)" ]; then
   exit 1
 fi
 
+# Ensure akash is installed
+if ! [ -x "$(which akash)" ]; then
+  echo "Error: akash is not installed. Try running 'make build-akash'" >&2
+  exit 1
+fi
+
 # Display software version for testers
 echo "GAIA VERSION INFO:"
 gaiad version --long
 
 echo "SOMMELIER VERSION INFO:"
 sommelier version --long
+
+echo "AKASH VERSION INFO:"
+akash version --long
 
 # Ensure jq is installed
 if [[ ! -x "$(which jq)" ]]; then
@@ -44,6 +53,7 @@ rm -rf $CONFIG_DATA &> /dev/null
 # Stop existing gaiad processes
 killall gaiad &> /dev/null
 killall sommelier &> /dev/null
+killall akash &> /dev/null
 
 # set -e
 
@@ -56,7 +66,7 @@ echo "Generating chain configurations..."
 mkdir -p $CONFIG_DATA && cd $CONFIG_DATA && cd ../
 ./scripts/one-chain sommelier     $chainid0 ./data 26657 26656 6060 9090 1122
 ./scripts/one-chain gaiad         $chainid1 ./data 26557 26556 6061 9900 1212
-./scripts/one-chain sommelier     $chainid2 ./data 25557 25556 6062 9990 2211
+./scripts/one-chain-akash akash   $chainid2 ./data 25557 25556 6062 9990 2211
 
 [ -f $CONFIG_DATA/$chainid0.log ] && echo "$chainid0 initialized. Watch file $CONFIG_DATA/$chainid0.log to see its execution."
 [ -f $CONFIG_DATA/$chainid1.log ] && echo "$chainid1 initialized. Watch file $CONFIG_DATA/$chainid1.log to see its execution."

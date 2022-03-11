@@ -5,6 +5,10 @@ RELAYER_CONF="$HOME/.relayer"
 GAIA_CONF="$(pwd)/data"
 CONFIG_DATA="$(pwd)/data"
 
+chainid0=ibc-0
+chainid1=ibc-1
+chainid2=ibc-2
+
 # Ensure user understands what will be deleted
 if ([[ -d $RELAYER_CONF ]] || [[ -d $GAIA_CONF ]]) && [[ ! "$1" == "skip" ]]; then
   read -p "$0 will delete \$HOME/.relayer and \$(pwd)/data folder. Do you wish to continue? (y/n): " -n 1 -r
@@ -22,46 +26,78 @@ bash scripts/three-chainz "skip"
 echo "waiting for blocks..."
 sleep 2
 
-rly tx link demo -d -o 5s
-rly tx link demo2 -d -o 5s
-#rly start demo > $CONFIG_DATA/rly-0.log 2>&1 &
-#rly start demo2 > $CONFIG_DATA/rly-1.log 2>&1 &
+# Link the paths between ChainA<->ChainB & ChainB<->ChainC
+rly tx link demo --override -d -o 5s
+rly tx link demo2 --override -d -o 5s
+
+echo
 echo "Initial balances"
-echo "balance 0 $(rly q bal ibc-0)"
-echo "balance 1 $(rly q bal ibc-1)"
-echo "balance 2 $(rly q bal ibc-2)"
+echo "balance 0 $(rly q bal $chainid0)"
+echo "balance 1 $(rly q bal $chainid1)"
+echo "balance 2 $(rly q bal $chainid2)"
 echo
-echo "Packet receiver field: $(rly keys show ibc-1)|transfer/channel-1:$(rly keys show ibc-2)"
-rly tx transfer ibc-0 ibc-1 10000000000samoleans "raw:$(rly keys show ibc-1)|transfer/channel-1:$(rly keys show ibc-2)"
+
+# Send tokens from ChainA to ChainB
+echo "Packet receiver field: $(rly keys show $chainid1)|transfer/channel-1:$(rly keys show $chainid2)"
+rly tx transfer $chainid0 $chainid1 10000000000samoleans "raw:$(rly keys show $chainid1)|transfer/channel-1:$(rly keys show $chainid2)"
 sleep 2
-rly tx relay-packets demo -d > $CONFIG_DATA/rly-0.log 2>&1 &
+rly tx relay-packets demo -d >> $CONFIG_DATA/rly-0.log 2>&1 &
 sleep 2
-rly tx relay-acknowledgements demo -d > $CONFIG_DATA/rly-0.log 2>&1 &
+rly tx relay-acknowledgements demo -d >> $CONFIG_DATA/rly-0.log 2>&1 &
 sleep 10
-rly tx relay-packets demo2 -d > $CONFIG_DATA/rly-1.log 2>&1 &
-sleep 2
-rly tx relay-acknowledgements demo2 -d > $CONFIG_DATA/rly-1.log 2>&1 &
+
 echo
+echo "Balances after packet is sent from $chainid0 to $chainid1"
+echo "balance 0 $(rly q bal $chainid0)"
+echo "balance 1 $(rly q bal $chainid1)"
+echo "balance 2 $(rly q bal $chainid2)"
+
+# Tokens get routed from ChainB to ChainC
+rly tx relay-packets demo2 -d >> $CONFIG_DATA/rly-1.log 2>&1 &
+sleep 2
+rly tx relay-acknowledgements demo2 -d >> $CONFIG_DATA/rly-1.log 2>&1 &
 sleep 10
-echo "Balances after packet is sent to ibc-1"
-echo "balance 0 $(rly q bal ibc-0)"
-echo "balance 1 $(rly q bal ibc-1)"
-echo "balance 2 $(rly q bal ibc-2)"
+echo
+
+echo "Balances after packet is sent from $chainid1 to $chainid2"
+echo "balance 0 $(rly q bal $chainid0)"
+echo "balance 1 $(rly q bal $chainid1)"
+echo "balance 2 $(rly q bal $chainid2)"
+echo
+
+# Send tokens back from ChainC to ChainB
+echo "Packet receiver field: $(rly keys show $chainid1)|transfer/channel-1:$(rly keys show $chainid0)"
+#rly tx transfer $chainid2 $chainid1 10000000000transfer/channel-0/transfer/channel-0/samoleans "raw:$(rly keys show $chainid1)|transfer/channel-1:$(rly keys show $chainid0)"
+rly tx transfer $chainid2 $chainid1 10000000000ibc/F47F0D7C9B4F7D971DF647A75A80CB8D905D3230262FEF2996340664D3A12D48 "raw:$(rly keys show $chainid1)|transfer/channel-1:$(rly keys show $chainid0)"
+sleep 2
+rly tx relay-packets demo2 -d >> $CONFIG_DATA/rly-1.log 2>&1 &
+sleep 2
+rly tx relay-acknowledgements demo2 -d >> $CONFIG_DATA/rly-1.log 2>&1 &
 sleep 10
-echo "Balances after packet is sent from ibc-1 to ibc-2"
-echo "balance 0 $(rly q bal ibc-0)"
-echo "balance 1 $(rly q bal ibc-1)"
-echo "balance 2 $(rly q bal ibc-2)"
-echo "################## relayer ibc-0 -> ibc-1 logs #####################"
+echo
+
+echo "Balances after packet is sent from $chainid2 to $chainid1"
+echo "balance 0 $(rly q bal $chainid0)"
+echo "balance 1 $(rly q bal $chainid1)"
+echo "balance 2 $(rly q bal $chainid2)"
+
+# Tokens get routed from ChainB to ChainA
+rly tx relay-packets demo -d >> $CONFIG_DATA/rly-0.log 2>&1 &
+sleep 2
+rly tx relay-acknowledgements demo -d >> $CONFIG_DATA/rly-0.log 2>&1 &
+sleep 10
+echo
+
+echo "Balances after packet is sent from $chainid1 to $chainid0"
+echo "balance 0 $(rly q bal $chainid0)"
+echo "balance 1 $(rly q bal $chainid1)"
+echo "balance 2 $(rly q bal $chainid2)"
+echo
+
+echo "################## relayer $chainid0 <-> $chainid1 logs #####################"
 cat $CONFIG_DATA/rly-0.log
-echo "################## relayer ibc-0 -> ibc-1 logs #####################"
+echo
+echo "################## relayer $chainid1 <-> $chainid2 logs #####################"
 cat $CONFIG_DATA/rly-1.log
 
-#go run main.go tx transfer ibc-0 ibc-1 1000samoleans $(go run main.go ch addr ibc-1)
-#go run main.go tx transfer ibc-1 ibc-2 1000samoleans $(go run main.go ch addr ibc-2)
-#go run main.go tx transfer ibc-2 ibc-1 1000samoleans $(go run main.go ch addr ibc-1)
-#go run main.go tx transfer ibc-1 ibc-0 1000samoleans $(go run main.go ch addr ibc-0)
-#sleep 2
-#go run main.go tx relay-packets demo -d
-#sleep 2
-#go run main.go tx relay-acknowledgements demo -d
+# ibc/F47F0D7C9B4F7D971DF647A75A80CB8D905D3230262FEF2996340664D3A12D48

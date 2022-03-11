@@ -54,17 +54,18 @@ build-akash-docker:
 	docker build -t ovrclk/akash:$(AKASH_VERSION) --build-arg VERSION=$(AKASH_VERSION) -f ./docker/akash/Dockerfile .
 
 build-osmosis-docker:
-	docker build -t ovrclk/akash:$(OSMOSIS_VERSION) --build-arg VERSION=$(OSMOSIS_VERSION) -f ./docker/akash/Dockerfile .
+	docker build -t osmosis-labs/osmosis:$(OSMOSIS_VERSION) --build-arg VERSION=$(OSMOSIS_VERSION) -f ./docker/osmosis/Dockerfile .
 
 ###############################################################################
 # Tests / CI
 ###############################################################################
 
 test:
-	@go test -mod=readonly -v ./test/...
+	@go test -mod=readonly -v -timeout 20m ./test/...
 
 test-gaia:
-	@go test -mod=readonly -v -run TestGaiaToGaiaRelaying ./test/...
+	@go test -mod=readonly -race -v -run TestGaiaToGaiaRelaying ./test/...
+	@go test -mod=readonly -race -v -run TestRelayAllChannelsOnConnection ./test/...
 
 test-akash:
 	@go test -mod=readonly -v -run TestAkashToGaiaRelaying ./test/...
@@ -106,7 +107,7 @@ get-somm:
 build-somm:
 	@./scripts/build-somm
 
-get-chains: get-gaia get-akash get-wasmd
+get-chains: get-gaia get-akash get-wasmd get-somm
 
 get-wasmd:
 	@mkdir -p ./chain-code/
@@ -115,7 +116,7 @@ get-wasmd:
 build-wasmd:
 	@./scripts/build-wasmd
 
-build-chains: build-akash build-gaia build-wasmd
+build-chains: build-akash build-gaia build-wasmd build-somm
 
 delete-chains: 
 	@echo "Removing the ./chain-code/ directory..."
