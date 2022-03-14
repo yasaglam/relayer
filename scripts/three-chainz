@@ -64,7 +64,7 @@ chainid2=ibc-2
 # Spin up the 3 chain instances
 echo "Generating chain configurations..."
 mkdir -p $CONFIG_DATA && cd $CONFIG_DATA && cd ../
-./scripts/one-chain sommelier     $chainid0 ./data 26657 26656 6060 9090 1122
+./scripts/one-chain-akash akash   $chainid0 ./data 26657 26656 6060 9090 1122
 ./scripts/one-chain gaiad         $chainid1 ./data 26557 26556 6061 9900 1212
 ./scripts/one-chain-akash akash   $chainid2 ./data 25557 25556 6062 9990 2211
 

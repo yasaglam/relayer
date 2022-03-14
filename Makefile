@@ -106,7 +106,7 @@ get-akash:
 
 get-somm:
 	@mkdir -p ./chain-code/
-	@git clone --branch jack/test-ibc-forward https://github.com/PeggyJV/sommelier ./chain-code/sommelier
+	@git clone --branch v3.1.1 https://github.com/PeggyJV/sommelier ./chain-code/sommelier
 
 build-somm:
 	@./scripts/build-somm
