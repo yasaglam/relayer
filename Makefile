@@ -86,6 +86,10 @@ lint:
 # Chain Code Downloads
 ###############################################################################
 
+get-gaia-fork:
+	@mkdir -p ./chain-code/
+	@git clone --branch justin/ibc-router-debug git@github.com:jtieri/gaia.git ./chain-code/gaia
+
 get-gaia:
 	@mkdir -p ./chain-code/
 	@git clone --branch $(GAIA_VERSION) git@github.com:cosmos/gaia.git ./chain-code/gaia
