@@ -88,7 +88,7 @@ lint:
 
 get-gaia-fork:
 	@mkdir -p ./chain-code/
-	@git clone --branch justin/ibc-router-debug git@github.com:jtieri/gaia.git ./chain-code/gaia
+	@git clone --branch justin/debug-router-bug git@github.com:jtieri/gaia.git ./chain-code/gaia
 
 get-gaia:
 	@mkdir -p ./chain-code/
