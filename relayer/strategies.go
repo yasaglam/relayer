@@ -48,6 +48,88 @@ func relayerMainLoop(ctx context.Context, src, dst *Chain, filter ChannelFilter,
 		// Apply the channel filter rule (i.e. build allowlist, denylist or relay on all channels available)
 		srcChannels = applyChannelFilterRule(filter, srcChannels)
 
+		// Testing Handling ICA
+		openInitEvent := fmt.Sprintf("%s.%s='%s'", types.EventTypeChannelOpenInit, types.AttributeKeyConnectionID, src.ConnectionID())
+		res, err := src.ChainProvider.QueryTxs(ctx, 1, 1000, []string{openInitEvent})
+		if err != nil {
+			src.log.Warn("Failed to query txs",
+				zap.String("src-chain-id", src.ChainID()))
+		}
+
+		var srcPortID, dstPortID, ordering string
+		var srcChanID, dstChanID string
+
+		src.log.Info("Number of txs in res",
+			zap.Int("num-of-txs", len(res)))
+
+		for _, tx := range res {
+			for _, event := range tx.TxResult.Events {
+				if event.Type == types.EventTypeChannelOpenInit {
+					for _, att := range event.Attributes {
+						if string(att.Key) == types.AttributeKeyPortID {
+							srcPortID = string(att.Value)
+						}
+						if string(att.Key) == types.AttributeCounterpartyPortID {
+							dstPortID = string(att.Value)
+						}
+						if string(att.Key) == types.AttributeKeyChannelOrdering {
+							ordering = string(att.Value)
+						}
+						if string(att.Key) == types.AttributeKeyChannelID {
+							srcChanID = string(att.Value)
+						}
+						if string(att.Key) == types.AttributeCounterpartyChannelID {
+							dstChanID = string(att.Value)
+						}
+					}
+				}
+			}
+		}
+
+		var channel *types.IdentifiedChannel
+		for _, c := range srcChannels {
+			if c.ChannelId == srcChanID {
+				channel = c
+			}
+		}
+
+		ordering = "ordered" // ICA ordering is always ordered
+
+		_, err = src.CreateOpenChannels(ctx, dst, 5, 5*time.Second, srcPortID, dstPortID, ordering, "ics27-1", false)
+		if err != nil {
+			src.log.Warn("Failed to open channel",
+				zap.String("src-channel-id", srcChanID),
+				zap.String("src-port-id", srcPortID),
+				zap.String("dst-channel-id", dstChanID),
+				zap.String("dst-port-id", dstPortID),
+				zap.String("channel-version", "ics27-1"),
+				zap.String("channel-ordering", ordering),
+				zap.Error(err))
+		} else {
+			src.log.Debug("Opened the channel")
+		}
+
+		// This works but parsing this data from the tx events is a better approach
+		/*
+			for _, c := range srcChannels {
+				if c.State == types.INIT {
+					_, err := src.CreateOpenChannels(ctx, dst, 10, 5*time.Second, c.PortId, c.Counterparty.PortId, StringFromOrder(c.Ordering), c.Version, false)
+					if err != nil {
+						src.log.Warn("Failed to open channel",
+							zap.String("src-channel-id", c.ChannelId),
+							zap.String("src-port-id", c.PortId),
+							zap.String("dst-channel-id", c.Counterparty.ChannelId),
+							zap.String("dst-port-id", c.Counterparty.ChannelId),
+							zap.String("channel-version", c.Version),
+							zap.String("channel-ordering", c.Ordering.String()),
+							zap.Error(err))
+					} else {
+						src.log.Debug("Opened the channel")
+					}
+				}
+			}
+		*/
+
 		// Filter for open channels that are not already in our slice of open channels
 		srcOpenChannels = filterOpenChannels(srcChannels, srcOpenChannels)
 
