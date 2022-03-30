@@ -48,113 +48,119 @@ func relayerMainLoop(ctx context.Context, src, dst *Chain, filter ChannelFilter,
 		// Apply the channel filter rule (i.e. build allowlist, denylist or relay on all channels available)
 		srcChannels = applyChannelFilterRule(filter, srcChannels)
 
-		// Check for ChannelOpenInit events
-		openInitEvent := fmt.Sprintf("%s.%s='%s'", types.EventTypeChannelOpenInit, types.AttributeKeyConnectionID, src.ConnectionID())
-		res, err := src.ChainProvider.QueryTxs(ctx, 1, 1000, []string{openInitEvent})
-		if err != nil {
-			src.log.Warn("Failed to query txs", zap.String("src-chain-id", src.ChainID()))
-		}
+		/*
+			// Check for ChannelOpenInit events
+			openInitEvent := fmt.Sprintf("%s.%s='%s'", types.EventTypeChannelOpenInit, types.AttributeKeyConnectionID, src.ConnectionID())
+			res, err := src.ChainProvider.QueryTxs(ctx, 1, 1000, []string{openInitEvent})
+			if err != nil {
+				src.log.Warn("Failed to query txs", zap.String("src-chain-id", src.ChainID()))
+			}
 
-		// If there are any results from the QueryTxs call,
-		// parse the channel identifiers from the events.
-		if err == nil && len(res) > 0 {
-			var srcPortID, dstPortID, ordering, srcChanID, dstChanID string
+			// If there are any results from the QueryTxs call,
+			// parse the channel identifiers from the events.
+			if err == nil && len(res) > 0 {
+				var srcPortID, dstPortID, ordering, srcChanID, dstChanID string
 
-			for _, tx := range res {
-				for _, event := range tx.TxResult.Events {
-					if event.Type == types.EventTypeChannelOpenInit {
-						for _, att := range event.Attributes {
-							if string(att.Key) == types.AttributeKeyPortID {
-								srcPortID = string(att.Value)
-							}
-							if string(att.Key) == types.AttributeCounterpartyPortID {
-								dstPortID = string(att.Value)
-							}
-							if string(att.Key) == types.AttributeKeyChannelOrdering {
-								ordering = string(att.Value)
-							}
-							if string(att.Key) == types.AttributeKeyChannelID {
-								srcChanID = string(att.Value)
-							}
-							if string(att.Key) == types.AttributeCounterpartyChannelID {
-								dstChanID = string(att.Value)
+				for _, tx := range res {
+					for _, event := range tx.TxResult.Events {
+						if event.Type == types.EventTypeChannelOpenInit {
+							for _, att := range event.Attributes {
+								if string(att.Key) == types.AttributeKeyPortID {
+									srcPortID = string(att.Value)
+								}
+								if string(att.Key) == types.AttributeCounterpartyPortID {
+									dstPortID = string(att.Value)
+								}
+								if string(att.Key) == types.AttributeKeyChannelOrdering {
+									ordering = string(att.Value)
+								}
+								if string(att.Key) == types.AttributeKeyChannelID {
+									srcChanID = string(att.Value)
+								}
+								if string(att.Key) == types.AttributeCounterpartyChannelID {
+									dstChanID = string(att.Value)
+								}
 							}
 						}
 					}
 				}
-			}
 
-			// Can't find version information in the tx events so pulling that out here
-			var channel *types.IdentifiedChannel
-			for _, c := range srcChannels {
-				if c.ChannelId == srcChanID {
-					channel = c
+				// Can't find version information in the tx events so pulling that out here
+				var channel *types.IdentifiedChannel
+				for _, c := range srcChannels {
+					if c.ChannelId == srcChanID {
+						channel = c
+					}
 				}
-			}
 
-			if channel.State == types.INIT {
-				ordering = StringFromOrder(channel.Ordering)
-				version := channel.Version
+				if channel.State == types.INIT {
+					ordering = StringFromOrder(channel.Ordering)
+					version := channel.Version
 
-				// Finish the channel handshake
-				_, err = src.CreateOpenChannels(ctx, dst, 5, 5*time.Second, srcPortID, dstPortID, ordering, version, false)
-				if err != nil {
-					src.log.Warn("Failed to open channel",
-						zap.String("src-channel-id", srcChanID),
-						zap.String("src-port-id", srcPortID),
-						zap.String("dst-channel-id", dstChanID),
-						zap.String("dst-port-id", dstPortID),
-						zap.String("channel-version", "ics27-1"),
-						zap.String("channel-ordering", ordering),
-						zap.Error(err))
-				} else {
-					src.log.Debug("Opened the channel")
-				}
-			}
-		}
-
-		// This works but parsing this data from the tx events is a better approach
-		/*
-			for _, c := range srcChannels {
-				if c.State == types.INIT {
-					_, err := src.CreateOpenChannels(ctx, dst, 10, 5*time.Second, c.PortId, c.Counterparty.PortId, StringFromOrder(c.Ordering), c.Version, false)
+					// Finish the channel handshake
+					_, err = src.CreateOpenChannels(ctx, dst, 5, 5*time.Second, srcPortID, dstPortID, ordering, version, false)
 					if err != nil {
 						src.log.Warn("Failed to open channel",
-							zap.String("src-channel-id", c.ChannelId),
-							zap.String("src-port-id", c.PortId),
-							zap.String("dst-channel-id", c.Counterparty.ChannelId),
-							zap.String("dst-port-id", c.Counterparty.ChannelId),
-							zap.String("channel-version", c.Version),
-							zap.String("channel-ordering", c.Ordering.String()),
+							zap.String("src-channel-id", srcChanID),
+							zap.String("src-port-id", srcPortID),
+							zap.String("dst-channel-id", dstChanID),
+							zap.String("dst-port-id", dstPortID),
+							zap.String("channel-version", "ics27-1"),
+							zap.String("channel-ordering", ordering),
 							zap.Error(err))
 					} else {
 						src.log.Debug("Opened the channel")
 					}
+
+					src.log.Debug("After channel handshake", zap.String("Channel state", channel.State.String()))
 				}
 			}
 		*/
 
-		// Filter for open channels that are not already in our slice of open channels
-		srcOpenChannels = filterOpenChannels(srcChannels, srcOpenChannels)
+		// This works but parsing this data from the tx events is a better approach
 
-		// Spin up a goroutine to relay packets & acks for each channel that isn't already being relayed against
-		for _, channel := range srcOpenChannels {
-			if !channel.active {
-				channel.active = true
-				go relayUnrelayedPacketsAndAcks(ctx, src, dst, maxTxSize, maxMsgLength, channel, channels)
+		for _, c := range srcChannels {
+			if c.State == types.INIT {
+				_, err := src.CreateOpenChannels(ctx, dst, 10, 5*time.Second, c.PortId, c.Counterparty.PortId, StringFromOrder(c.Ordering), c.Version, false)
+				if err != nil {
+					src.log.Warn("Failed to open channel",
+						zap.String("src-channel-id", c.ChannelId),
+						zap.String("src-port-id", c.PortId),
+						zap.String("dst-channel-id", c.Counterparty.ChannelId),
+						zap.String("dst-port-id", c.Counterparty.ChannelId),
+						zap.String("channel-version", c.Version),
+						zap.String("channel-ordering", c.Ordering.String()),
+						zap.Error(err))
+				} else {
+					src.log.Debug("Opened the channel")
+					src.log.Debug("Channel state after handshake", zap.String("channel-state", c.State.String()))
+				}
 			}
 		}
 
-		for channel := range channels {
-			channel.active = false
-			break
-		}
+		// Filter for open channels that are not already in our slice of open channels
+		srcOpenChannels = filterOpenChannels(srcChannels, srcOpenChannels)
 
-		// Make sure we are removing channels no longer in OPEN state from the slice of open channels
-		for i, channel := range srcOpenChannels {
-			if channel.channel.State != types.OPEN {
-				srcOpenChannels[i] = srcOpenChannels[len(srcOpenChannels)-1]
-				srcOpenChannels = srcOpenChannels[:len(srcOpenChannels)-1]
+		if len(srcOpenChannels) > 0 {
+			// Spin up a goroutine to relay packets & acks for each channel that isn't already being relayed against
+			for _, channel := range srcOpenChannels {
+				if !channel.active {
+					channel.active = true
+					go relayUnrelayedPacketsAndAcks(ctx, src, dst, maxTxSize, maxMsgLength, channel, channels)
+				}
+			}
+
+			for channel := range channels {
+				channel.active = false
+				break
+			}
+
+			// Make sure we are removing channels no longer in OPEN state from the slice of open channels
+			for i, channel := range srcOpenChannels {
+				if channel.channel.State != types.OPEN {
+					srcOpenChannels[i] = srcOpenChannels[len(srcOpenChannels)-1]
+					srcOpenChannels = srcOpenChannels[:len(srcOpenChannels)-1]
+				}
 			}
 		}
 	}
