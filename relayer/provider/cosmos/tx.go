@@ -2,6 +2,7 @@ package cosmos
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -14,6 +15,8 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	transfertypes "github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v3/modules/core/02-client/types"
 	conntypes "github.com/cosmos/ibc-go/v3/modules/core/03-connection/types"
@@ -721,9 +724,14 @@ func (cc *CosmosProvider) MsgUpgradeClient(srcClientId string, consRes *clientty
 	if acc, err = cc.Address(); err != nil {
 		return nil, err
 	}
-	return NewCosmosMessage(&clienttypes.MsgUpgradeClient{ClientId: srcClientId, ClientState: clientRes.ClientState,
-		ConsensusState: consRes.ConsensusState, ProofUpgradeClient: consRes.GetProof(),
-		ProofUpgradeConsensusState: consRes.ConsensusState.Value, Signer: acc}), nil
+	return NewCosmosMessage(&clienttypes.MsgUpgradeClient{
+		ClientId:                   srcClientId,
+		ClientState:                clientRes.ClientState,
+		ConsensusState:             consRes.ConsensusState,
+		ProofUpgradeClient:         consRes.GetProof(),
+		ProofUpgradeConsensusState: consRes.ConsensusState.Value,
+		Signer:                     acc,
+	}), nil
 }
 
 // AutoUpdateClient update client automatically to prevent expiry
@@ -1671,4 +1679,54 @@ func (cc *CosmosProvider) NewClientState(dstUpdateHeader ibcexported.Header, dst
 		AllowUpdateAfterExpiry:       allowUpdateAfterExpiry,
 		AllowUpdateAfterMisbehaviour: allowUpdateAfterMisbehaviour,
 	}, nil
+}
+
+// UpgradeChain submits and upgrade proposal using a zero'd out client state with an updated unbonding period.
+func (cc *CosmosProvider) UpgradeChain(ctx context.Context, dst provider.ChainProvider, srcClientID string, upgradePlan []byte, deposit sdk.Coin, unbondingPeriod time.Duration) error {
+	dsth, err := dst.QueryLatestHeight(ctx)
+	if err != nil {
+		return err
+	}
+
+	clientState, err := dst.QueryClientState(ctx, dsth, srcClientID)
+	if err != nil {
+		return err
+	}
+
+	plan := &upgradetypes.Plan{}
+	if err = json.Unmarshal(upgradePlan, plan); err != nil {
+		return err
+	}
+
+	upgradedClientState := clientState.ZeroCustomFields().(*tmclient.ClientState)
+	upgradedClientState.LatestHeight.RevisionHeight = uint64(plan.Height + 1)
+	upgradedClientState.UnbondingPeriod = unbondingPeriod
+
+	// TODO: make cli args for title and description
+	upgradeProposal, err := clienttypes.NewUpgradeProposal(
+		"upgrade",
+		"upgrade the chain's software and unbonding period",
+		*plan,
+		upgradedClientState,
+	)
+	if err != nil {
+		return err
+	}
+
+	addr, err := cc.ShowAddress(cc.Key())
+	if err != nil {
+		return err
+	}
+
+	msg, err := govtypes.NewMsgSubmitProposal(upgradeProposal, sdk.NewCoins(deposit), sdk.AccAddress(addr))
+	if err != nil {
+		return err
+	}
+
+	_, _, err = cc.SendMessage(ctx, NewCosmosMessage(msg))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

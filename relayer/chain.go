@@ -23,7 +23,6 @@ var (
 )
 
 // Chain represents the necessary data for connecting to and identifying a chain and its counterparties
-// TODO revise Chain struct
 type Chain struct {
 	log *zap.Logger
 
@@ -169,45 +168,3 @@ func (c *Chain) GetTimeout() (time.Duration, error) {
 	}
 	return timeout, nil
 }
-
-//// UpgradeChain submits and upgrade proposal using a zero'd out client state with an updated unbonding period.
-//func (c *Chain) UpgradeChain(dst *Chain, plan *upgradetypes.Plan, deposit sdk.Coin,
-//	unbondingPeriod time.Duration) error {
-//	height, err := dst.ChainProvider.QueryLatestHeight()
-//	if err != nil {
-//		return err
-//	}
-//
-//	clientState, err := dst.ChainProvider.QueryClientState(height, c.PathEnd.ClientID)
-//	if err != nil {
-//		return err
-//	}
-//
-//	upgradedClientState := clientState.ZeroCustomFields().(*ibctmtypes.ClientState)
-//	upgradedClientState.LatestHeight.RevisionHeight = uint64(plan.Height + 1)
-//	upgradedClientState.UnbondingPeriod = unbondingPeriod
-//
-//	// TODO: make cli args for title and description
-//	upgradeProposal, err := clienttypes.NewUpgradeProposal("upgrade",
-//		"upgrade the chain's software and unbonding period", *plan, upgradedClientState)
-//	if err != nil {
-//		return err
-//	}
-//
-//	addr, err := c.ChainProvider.ShowAddress(c.ChainProvider.Key())
-//	if err != nil {
-//		return err
-//	}
-//
-//	msg, err := govtypes.NewMsgSubmitProposal(upgradeProposal, sdk.NewCoins(deposit), addr)
-//	if err != nil {
-//		return err
-//	}
-//
-//	_, _, err = c.ChainProvider.SendMessage(msg)
-//	if err != nil {
-//		return err
-//	}
-//
-//	return nil
-//}

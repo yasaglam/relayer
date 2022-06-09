@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -40,7 +41,7 @@ Most of these commands take a [path] argument. Make sure:
 		createClientCmd(a),
 		updateClientsCmd(a),
 		upgradeClientsCmd(a),
-		//upgradeChainCmd(),
+		upgradeChainCmd(a),
 		createConnectionCmd(a),
 		createChannelCmd(a),
 		closeChannelCmd(a),
@@ -789,70 +790,64 @@ $ %s tx relay-acks demo-path channel-0 -l 3 -s 6`,
 	return strategyFlag(a.Viper, cmd)
 }
 
-// TODO still needs a revisit
-//func upgradeChainCmd() *cobra.Command {
-//	cmd := &cobra.Command{
-//		Use:   "upgrade-chain [path-name] [chain-id] [new-unbonding-period] [deposit] [path/to/upgradePlan.json]",
-//		Short: "upgrade an IBC-enabled network with a given upgrade plan",
-//		Long: strings.TrimSpace(`Upgrade an IBC-enabled network by providing the chain-id of the
-//network being upgraded, the new unbonding period, the proposal deposit and the JSON file of the
-//upgrade plan without the upgrade client state.`,
-//		),
-//		Args: cobra.ExactArgs(5),
-//		RunE: func(cmd *cobra.Command, args []string) error {
-//			c, src, dst, err := config.ChainsFromPath(args[0])
-//			if err != nil {
-//				return err
-//			}
-//
-//			targetChainID := args[1]
-//
-//			unbondingPeriod, err := time.ParseDuration(args[2])
-//			if err != nil {
-//				return err
-//			}
-//
-//			// ensure that keys exist
-//			if exists := c[src].ChainProvider.KeyExists(c[src].ChainProvider.Key()); !exists {
-//				return fmt.Errorf("key %s not found on chain %s \n", c[src].ChainProvider.Key(), c[src].ChainID())
-//			}
-//			if exists := c[dst].ChainProvider.KeyExists(c[dst].ChainProvider.Key()); !exists {
-//				return fmt.Errorf("key %s not found on chain %s \n", c[dst].ChainProvider.Key(), c[dst].ChainID())
-//			}
-//
-//			// parse deposit
-//			deposit, err := sdk.ParseCoinNormalized(args[3])
-//			if err != nil {
-//				return err
-//			}
-//
-//			// parse plan
-//			plan := &upgradetypes.Plan{}
-//			path := args[4]
-//			if _, err := os.Stat(path); err != nil {
-//				return err
-//			}
-//
-//			byt, err := os.ReadFile(path)
-//			if err != nil {
-//				return err
-//			}
-//
-//			if err = json.Unmarshal(byt, plan); err != nil {
-//				return err
-//			}
-//
-//			// send the upgrade message on the targetChainID
-//			if src == targetChainID {
-//				return c[src].UpgradeChain(c[dst], plan, deposit, unbondingPeriod)
-//			}
-//
-//			return c[dst].UpgradeChain(c[src], plan, deposit, unbondingPeriod)
-//		},
-//	}
-//
-//	return cmd
-//}
+func upgradeChainCmd(a *appState) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "upgrade-chain path_name chain_id new_unbonding_period deposit path_to_upgradePlan.json",
+		Short: "upgrade an IBC-enabled network with a given upgrade plan",
+		Long: strings.TrimSpace(`Upgrade an IBC-enabled network by providing the chain-id of the
+network being upgraded, the new unbonding period, the proposal deposit and the JSON file of the
+upgrade plan without the upgrade client state.`,
+		),
+		Args: withUsage(cobra.ExactArgs(5)),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, src, dst, err := a.Config.ChainsFromPath(args[0])
+			if err != nil {
+				return err
+			}
+
+			targetChainID := args[1]
+
+			unbondingPeriod, err := time.ParseDuration(args[2])
+			if err != nil {
+				return err
+			}
+
+			// ensure that keys exist
+			if exists := c[src].ChainProvider.KeyExists(c[src].ChainProvider.Key()); !exists {
+				return fmt.Errorf("key %s not found on chain %s \n", c[src].ChainProvider.Key(), c[src].ChainID())
+			}
+			if exists := c[dst].ChainProvider.KeyExists(c[dst].ChainProvider.Key()); !exists {
+				return fmt.Errorf("key %s not found on chain %s \n", c[dst].ChainProvider.Key(), c[dst].ChainID())
+			}
+
+			// parse deposit
+			deposit, err := sdk.ParseCoinNormalized(args[3])
+			if err != nil {
+				return err
+			}
+
+			// parse upgrade plan file from disk
+			path := args[4]
+			if _, err := os.Stat(path); err != nil {
+				return err
+			}
+
+			planBz, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+
+			// send the upgrade message on the targetChainID
+			if src == targetChainID {
+				return c[src].ChainProvider.UpgradeChain(cmd.Context(), c[dst].ChainProvider, c[src].ClientID(), planBz, deposit, unbondingPeriod)
+			}
+
+			return c[dst].ChainProvider.UpgradeChain(cmd.Context(), c[src].ChainProvider, c[dst].ClientID(), planBz, deposit, unbondingPeriod)
+		},
+	}
+
+	return cmd
+}
 
 func xfersend(a *appState) *cobra.Command {
 	cmd := &cobra.Command{
