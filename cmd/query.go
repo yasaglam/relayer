@@ -317,7 +317,7 @@ $ %s query header ibc-0 1400`,
 				return errChainNotFound(args[0])
 			}
 
-			var header ibcexported.Header
+			var header ibcexported.ClientMessage
 			var err error
 			switch len(args) {
 			case 1:

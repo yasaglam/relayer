@@ -275,7 +275,7 @@ func (cc *CosmosProvider) buildMessages(ctx context.Context, msgs []provider.Rel
 }
 
 // CreateClient creates an sdk.Msg to update the client on src with consensus state from dst
-func (cc *CosmosProvider) CreateClient(clientState ibcexported.ClientState, dstHeader ibcexported.Header, signer string) (provider.RelayerMessage, error) {
+func (cc *CosmosProvider) CreateClient(clientState ibcexported.ClientState, dstHeader ibcexported.ClientMessage, signer string) (provider.RelayerMessage, error) {
 	tmHeader, ok := dstHeader.(*tmclient.Header)
 	if !ok {
 		return nil, fmt.Errorf("got data of type %T but wanted tmclient.Header", dstHeader)
@@ -304,27 +304,27 @@ func (cc *CosmosProvider) SubmitMisbehavior( /*TBD*/ ) (provider.RelayerMessage,
 	return nil, nil
 }
 
-func (cc *CosmosProvider) UpdateClient(srcClientId string, dstHeader ibcexported.Header) (provider.RelayerMessage, error) {
+func (cc *CosmosProvider) UpdateClient(srcClientId string, dstHeader ibcexported.ClientMessage) (provider.RelayerMessage, error) {
 	acc, err := cc.Address()
 	if err != nil {
 		return nil, err
 	}
 
-	anyHeader, err := clienttypes.PackHeader(dstHeader)
+	anyHeader, err := clienttypes.PackClientMessage(dstHeader)
 	if err != nil {
 		return nil, err
 	}
 
 	msg := &clienttypes.MsgUpdateClient{
-		ClientId: srcClientId,
-		Header:   anyHeader,
-		Signer:   acc,
+		ClientId:      srcClientId,
+		ClientMessage: anyHeader,
+		Signer:        acc,
 	}
 
 	return NewCosmosMessage(msg), nil
 }
 
-func (cc *CosmosProvider) ConnectionOpenInit(srcClientId, dstClientId string, dstHeader ibcexported.Header) ([]provider.RelayerMessage, error) {
+func (cc *CosmosProvider) ConnectionOpenInit(srcClientId, dstClientId string, dstHeader ibcexported.ClientMessage) ([]provider.RelayerMessage, error) {
 	var (
 		acc     string
 		err     error
@@ -355,7 +355,7 @@ func (cc *CosmosProvider) ConnectionOpenInit(srcClientId, dstClientId string, ds
 	return []provider.RelayerMessage{updateMsg, NewCosmosMessage(msg)}, nil
 }
 
-func (cc *CosmosProvider) ConnectionOpenTry(ctx context.Context, dstQueryProvider provider.QueryProvider, dstHeader ibcexported.Header, srcClientId, dstClientId, srcConnId, dstConnId string) ([]provider.RelayerMessage, error) {
+func (cc *CosmosProvider) ConnectionOpenTry(ctx context.Context, dstQueryProvider provider.QueryProvider, dstHeader ibcexported.ClientMessage, srcClientId, dstClientId, srcConnId, dstConnId string) ([]provider.RelayerMessage, error) {
 	var (
 		acc string
 		err error
@@ -420,7 +420,7 @@ func (cc *CosmosProvider) ConnectionOpenTry(ctx context.Context, dstQueryProvide
 	return []provider.RelayerMessage{updateMsg, NewCosmosMessage(msg)}, nil
 }
 
-func (cc *CosmosProvider) ConnectionOpenAck(ctx context.Context, dstQueryProvider provider.QueryProvider, dstHeader ibcexported.Header, srcClientId, srcConnId, dstClientId, dstConnId string) ([]provider.RelayerMessage, error) {
+func (cc *CosmosProvider) ConnectionOpenAck(ctx context.Context, dstQueryProvider provider.QueryProvider, dstHeader ibcexported.ClientMessage, srcClientId, srcConnId, dstClientId, dstConnId string) ([]provider.RelayerMessage, error) {
 	var (
 		acc string
 		err error
@@ -469,7 +469,7 @@ func (cc *CosmosProvider) ConnectionOpenAck(ctx context.Context, dstQueryProvide
 	return []provider.RelayerMessage{updateMsg, NewCosmosMessage(msg)}, nil
 }
 
-func (cc *CosmosProvider) ConnectionOpenConfirm(ctx context.Context, dstQueryProvider provider.QueryProvider, dstHeader ibcexported.Header, dstConnId, srcClientId, srcConnId string) ([]provider.RelayerMessage, error) {
+func (cc *CosmosProvider) ConnectionOpenConfirm(ctx context.Context, dstQueryProvider provider.QueryProvider, dstHeader ibcexported.ClientMessage, dstConnId, srcClientId, srcConnId string) ([]provider.RelayerMessage, error) {
 	var (
 		acc string
 		err error
@@ -502,7 +502,7 @@ func (cc *CosmosProvider) ConnectionOpenConfirm(ctx context.Context, dstQueryPro
 	return []provider.RelayerMessage{updateMsg, NewCosmosMessage(msg)}, nil
 }
 
-func (cc *CosmosProvider) ChannelOpenInit(srcClientId, srcConnId, srcPortId, srcVersion, dstPortId string, order chantypes.Order, dstHeader ibcexported.Header) ([]provider.RelayerMessage, error) {
+func (cc *CosmosProvider) ChannelOpenInit(srcClientId, srcConnId, srcPortId, srcVersion, dstPortId string, order chantypes.Order, dstHeader ibcexported.ClientMessage) ([]provider.RelayerMessage, error) {
 	var (
 		acc string
 		err error
@@ -534,7 +534,7 @@ func (cc *CosmosProvider) ChannelOpenInit(srcClientId, srcConnId, srcPortId, src
 	return []provider.RelayerMessage{updateMsg, NewCosmosMessage(msg)}, nil
 }
 
-func (cc *CosmosProvider) ChannelOpenTry(ctx context.Context, dstQueryProvider provider.QueryProvider, dstHeader ibcexported.Header, srcPortId, dstPortId, srcChanId, dstChanId, srcVersion, srcConnectionId, srcClientId string) ([]provider.RelayerMessage, error) {
+func (cc *CosmosProvider) ChannelOpenTry(ctx context.Context, dstQueryProvider provider.QueryProvider, dstHeader ibcexported.ClientMessage, srcPortId, dstPortId, srcChanId, dstChanId, srcVersion, srcConnectionId, srcClientId string) ([]provider.RelayerMessage, error) {
 	var (
 		acc string
 		err error
@@ -587,7 +587,7 @@ func (cc *CosmosProvider) ChannelOpenTry(ctx context.Context, dstQueryProvider p
 	return []provider.RelayerMessage{updateMsg, NewCosmosMessage(msg)}, nil
 }
 
-func (cc *CosmosProvider) ChannelOpenAck(ctx context.Context, dstQueryProvider provider.QueryProvider, dstHeader ibcexported.Header, srcClientId, srcPortId, srcChanId, dstChanId, dstPortId string) ([]provider.RelayerMessage, error) {
+func (cc *CosmosProvider) ChannelOpenAck(ctx context.Context, dstQueryProvider provider.QueryProvider, dstHeader ibcexported.ClientMessage, srcClientId, srcPortId, srcChanId, dstChanId, dstPortId string) ([]provider.RelayerMessage, error) {
 	var (
 		acc string
 		err error
@@ -624,7 +624,7 @@ func (cc *CosmosProvider) ChannelOpenAck(ctx context.Context, dstQueryProvider p
 	return []provider.RelayerMessage{updateMsg, NewCosmosMessage(msg)}, nil
 }
 
-func (cc *CosmosProvider) ChannelOpenConfirm(ctx context.Context, dstQueryProvider provider.QueryProvider, dstHeader ibcexported.Header, srcClientId, srcPortId, srcChanId, dstPortId, dstChanId string) ([]provider.RelayerMessage, error) {
+func (cc *CosmosProvider) ChannelOpenConfirm(ctx context.Context, dstQueryProvider provider.QueryProvider, dstHeader ibcexported.ClientMessage, srcClientId, srcPortId, srcChanId, dstPortId, dstChanId string) ([]provider.RelayerMessage, error) {
 	var (
 		acc string
 		err error
@@ -791,6 +791,11 @@ func (cc *CosmosProvider) AutoUpdateClient(ctx context.Context, dst provider.Cha
 		return 0, err
 	}
 
+	srcHeader, ok := srcUpdateHeader.(*tmclient.Header)
+	if !ok {
+		return 0, fmt.Errorf("got type(%s) expected type(*tmclient.Header)", reflect.TypeOf(srcUpdateHeader))
+	}
+
 	dstUpdateHeader, err := dst.GetIBCUpdateHeader(ctx, dsth, cc, srcClientId)
 	if err != nil {
 		return 0, err
@@ -815,8 +820,8 @@ func (cc *CosmosProvider) AutoUpdateClient(ctx context.Context, dst provider.Cha
 		"Client updated",
 		zap.String("provider_chain_id", cc.PCfg.ChainID),
 		zap.String("src_client_id", srcClientId),
-		zap.Uint64("prev_height", mustGetHeight(srcUpdateHeader.GetHeight()).GetRevisionHeight()),
-		zap.Uint64("cur_height", srcUpdateHeader.GetHeight().GetRevisionHeight()),
+		zap.Uint64("prev_height", mustGetHeight(srcHeader.GetHeight()).GetRevisionHeight()),
+		zap.Uint64("cur_height", srcHeader.GetHeight().GetRevisionHeight()),
 	)
 
 	return clientState.TrustingPeriod, nil
@@ -1270,12 +1275,20 @@ EventLoop:
 			}
 		}
 
+		// TODO every light client type would need to be added here as an additional case
+		var blockHeight ibcexported.Height
+		switch block.(type) {
+		case *tmclient.Header:
+			header := block.(*tmclient.Header)
+			blockHeight = header.GetHeight()
+		}
+
 		switch {
 		// If the packet has a timeout time, and it has been reached, return a timeout packet
 		case rp.timeoutStamp > 0 && uint64(dstBlockTime) > rp.timeoutStamp:
 			timeoutPackets = append(timeoutPackets, rp.timeoutPacket())
 		// If the packet has a timeout height, and it has been reached, return a timeout packet
-		case !rp.timeout.IsZero() && block.GetHeight().GTE(rp.timeout):
+		case !rp.timeout.IsZero() && blockHeight.GTE(rp.timeout):
 			timeoutPackets = append(timeoutPackets, rp.timeoutPacket())
 		// If the packet matches the relay constraints relay it as a MsgReceivePacket
 		default:
@@ -1384,7 +1397,7 @@ EventLoop:
 // returns an IBC Update Header which can be used to update an on chain
 // light client on the destination chain. The source is used to construct
 // the header data.
-func (cc *CosmosProvider) GetIBCUpdateHeader(ctx context.Context, srch int64, dst provider.ChainProvider, dstClientId string) (ibcexported.Header, error) {
+func (cc *CosmosProvider) GetIBCUpdateHeader(ctx context.Context, srch int64, dst provider.ChainProvider, dstClientId string) (ibcexported.ClientMessage, error) {
 	// Construct header data from light client representing source.
 	h, err := cc.GetLightSignedHeaderAtHeight(ctx, srch)
 	if err != nil {
@@ -1395,7 +1408,7 @@ func (cc *CosmosProvider) GetIBCUpdateHeader(ctx context.Context, srch int64, ds
 	return cc.InjectTrustedFields(ctx, h, dst, dstClientId)
 }
 
-func (cc *CosmosProvider) GetLightSignedHeaderAtHeight(ctx context.Context, h int64) (ibcexported.Header, error) {
+func (cc *CosmosProvider) GetLightSignedHeaderAtHeight(ctx context.Context, h int64) (ibcexported.ClientMessage, error) {
 	if h == 0 {
 		return nil, fmt.Errorf("height cannot be 0")
 	}
@@ -1422,7 +1435,7 @@ func (cc *CosmosProvider) GetLightSignedHeaderAtHeight(ctx context.Context, h in
 // TrustedHeight is the latest height of the IBC client on dst
 // TrustedValidators is the validator set of srcChain at the TrustedHeight
 // InjectTrustedFields returns a copy of the header with TrustedFields modified
-func (cc *CosmosProvider) InjectTrustedFields(ctx context.Context, header ibcexported.Header, dst provider.ChainProvider, dstClientId string) (ibcexported.Header, error) {
+func (cc *CosmosProvider) InjectTrustedFields(ctx context.Context, header ibcexported.ClientMessage, dst provider.ChainProvider, dstClientId string) (ibcexported.ClientMessage, error) {
 	// make copy of header stored in mop
 	h, ok := header.(*tmclient.Header)
 	if !ok {
@@ -1639,7 +1652,7 @@ func castClientStateToTMType(cs *codectypes.Any) (*tmclient.ClientState, error) 
 //DefaultUpgradePath is the default IBC upgrade path set for an on-chain light client
 var defaultUpgradePath = []string{"upgrade", "upgradedIBCState"}
 
-func (cc *CosmosProvider) NewClientState(dstUpdateHeader ibcexported.Header, dstTrustingPeriod, dstUbdPeriod time.Duration, allowUpdateAfterExpiry, allowUpdateAfterMisbehaviour bool) (ibcexported.ClientState, error) {
+func (cc *CosmosProvider) NewClientState(dstUpdateHeader ibcexported.ClientMessage, dstTrustingPeriod, dstUbdPeriod time.Duration, allowUpdateAfterExpiry, allowUpdateAfterMisbehaviour bool) (ibcexported.ClientState, error) {
 	dstTmHeader, ok := dstUpdateHeader.(*tmclient.Header)
 	if !ok {
 		return nil, fmt.Errorf("got data of type %T but wanted tmclient.Header", dstUpdateHeader)
@@ -1653,7 +1666,7 @@ func (cc *CosmosProvider) NewClientState(dstUpdateHeader ibcexported.Header, dst
 		UnbondingPeriod:              dstUbdPeriod,
 		MaxClockDrift:                time.Minute * 10,
 		FrozenHeight:                 clienttypes.ZeroHeight(),
-		LatestHeight:                 dstUpdateHeader.GetHeight().(clienttypes.Height),
+		LatestHeight:                 dstTmHeader.GetHeight().(clienttypes.Height),
 		ProofSpecs:                   commitmenttypes.GetSDKSpecs(),
 		UpgradePath:                  defaultUpgradePath,
 		AllowUpdateAfterExpiry:       allowUpdateAfterExpiry,
