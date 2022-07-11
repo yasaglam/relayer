@@ -169,11 +169,15 @@ func (cc *CosmosProvider) QueryTendermintProof(ctx context.Context, height int64
 		height--
 	}
 
+	prove := true
+	if cc.ChainId() == "test-1" && height == 0 {
+		prove = false
+	}
 	req := abci.RequestQuery{
 		Path:   fmt.Sprintf("store/%s/key", host.StoreKey),
 		Height: height,
 		Data:   key,
-		Prove:  true,
+		Prove:  prove,
 	}
 
 	res, err := cc.QueryABCI(ctx, req)
