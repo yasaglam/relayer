@@ -183,11 +183,13 @@ func (cc *CosmosProvider) QueryTendermintProof(ctx context.Context, height int64
 
 	res, err := cc.QueryABCI(ctx, req)
 	if err != nil {
+		cc.log.Info("ERROR IN QUERY ABCI")
 		return nil, nil, clienttypes.Height{}, err
 	}
 
 	merkleProof, err := commitmenttypes.ConvertProofs(res.ProofOps)
 	if err != nil {
+		cc.log.Info("ERROR IN CONVERT PROOFS")
 		return nil, nil, clienttypes.Height{}, err
 	}
 
@@ -195,6 +197,7 @@ func (cc *CosmosProvider) QueryTendermintProof(ctx context.Context, height int64
 
 	proofBz, err := cdc.Marshal(&merkleProof)
 	if err != nil {
+		cc.log.Info("ERROR IN MARSHAL MERKLE PROOF")
 		return nil, nil, clienttypes.Height{}, err
 	}
 
