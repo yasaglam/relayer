@@ -172,6 +172,7 @@ func (cc *CosmosProvider) QueryTendermintProof(ctx context.Context, height int64
 	path := fmt.Sprintf("store/%s/key", host.StoreKey)
 	prove := true
 	if cc.ChainId() == "test-1" && height == 0 {
+		cc.log.Info("INSIDE SPECIAL CASE FOR ICQ")
 		prove = false
 		path = "/cosmos.bank.v1beta1.Query/AllBalances"
 	}
