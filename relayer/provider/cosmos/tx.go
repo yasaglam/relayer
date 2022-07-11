@@ -1106,7 +1106,7 @@ func (cc *CosmosProvider) ValidatePacket(msgTransfer provider.PacketInfo, latest
 
 func (cc *CosmosProvider) PacketCommitment(ctx context.Context, msgTransfer provider.PacketInfo, latest provider.LatestBlock) (provider.PacketProof, error) {
 	key := host.PacketCommitmentKey(msgTransfer.SourcePort, msgTransfer.SourceChannel, msgTransfer.Sequence)
-	_, proof, proofHeight, err := cc.QueryTendermintProof(ctx, int64(latest.Height), key)
+	_, proof, proofHeight, err := cc.QueryTendermintProof(ctx, int64(latest.Height), key, true)
 	if err != nil {
 		return provider.PacketProof{}, fmt.Errorf("error querying tendermint proof for packet commitment: %w", err)
 	}
@@ -1133,7 +1133,7 @@ func (cc *CosmosProvider) MsgRecvPacket(msgTransfer provider.PacketInfo, proof p
 
 func (cc *CosmosProvider) PacketAcknowledgement(ctx context.Context, msgRecvPacket provider.PacketInfo, latest provider.LatestBlock) (provider.PacketProof, error) {
 	key := host.PacketAcknowledgementKey(msgRecvPacket.DestPort, msgRecvPacket.DestChannel, msgRecvPacket.Sequence)
-	_, proof, proofHeight, err := cc.QueryTendermintProof(ctx, int64(latest.Height), key)
+	_, proof, proofHeight, err := cc.QueryTendermintProof(ctx, int64(latest.Height), key, true)
 	if err != nil {
 		return provider.PacketProof{}, fmt.Errorf("error querying tendermint proof for packet acknowledgement: %w", err)
 	}
@@ -1161,7 +1161,7 @@ func (cc *CosmosProvider) MsgAcknowledgement(msgRecvPacket provider.PacketInfo, 
 
 func (cc *CosmosProvider) PacketReceipt(ctx context.Context, msgTransfer provider.PacketInfo, latest provider.LatestBlock) (provider.PacketProof, error) {
 	key := host.PacketReceiptKey(msgTransfer.DestPort, msgTransfer.DestChannel, msgTransfer.Sequence)
-	_, proof, proofHeight, err := cc.QueryTendermintProof(ctx, int64(latest.Height), key)
+	_, proof, proofHeight, err := cc.QueryTendermintProof(ctx, int64(latest.Height), key, true)
 	if err != nil {
 		return provider.PacketProof{}, fmt.Errorf("error querying tendermint proof for packet receipt: %w", err)
 	}
