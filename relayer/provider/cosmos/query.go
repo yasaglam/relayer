@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	querytypes "github.com/cosmos/cosmos-sdk/types/query"
@@ -26,8 +27,11 @@ import (
 	tmclient "github.com/cosmos/ibc-go/v3/modules/light-clients/07-tendermint/types"
 	"github.com/cosmos/relayer/v2/relayer/provider"
 	abci "github.com/tendermint/tendermint/abci/types"
+	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	tmtypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var _ provider.QueryProvider = &CosmosProvider{}
@@ -145,6 +149,65 @@ func (cc *CosmosProvider) QueryUnbondingPeriod(ctx context.Context) (time.Durati
 	return res.Params.UnbondingTime, nil
 }
 
+func sdkErrorToGRPCError(resp abci.ResponseQuery) error {
+	switch resp.Code {
+	case sdkerrors.ErrInvalidRequest.ABCICode():
+		return status.Error(codes.InvalidArgument, resp.Log)
+	case sdkerrors.ErrUnauthorized.ABCICode():
+		return status.Error(codes.Unauthenticated, resp.Log)
+	case sdkerrors.ErrKeyNotFound.ABCICode():
+		return status.Error(codes.NotFound, resp.Log)
+	default:
+		return status.Error(codes.Unknown, resp.Log)
+	}
+}
+
+// isQueryStoreWithProof expects a format like /<queryType>/<storeName>/<subpath>
+// queryType must be "store" and subpath must be "key" to require a proof.
+func isQueryStoreWithProof(path string) bool {
+	if !strings.HasPrefix(path, "/") {
+		return false
+	}
+
+	paths := strings.SplitN(path[1:], "/", 3)
+
+	switch {
+	case len(paths) != 3:
+		return false
+	case paths[0] != "store":
+		return false
+	case rootmulti.RequireProof("/" + paths[2]):
+		return true
+	}
+
+	return false
+}
+
+func (cc *CosmosProvider) QueryABCITmp(ctx context.Context, req abci.RequestQuery) (abci.ResponseQuery, error) {
+	opts := rpcclient.ABCIQueryOptions{
+		Height: req.Height,
+		Prove:  req.Prove,
+	}
+	result, err := cc.RPCClient.ABCIQueryWithOptions(ctx, req.Path, req.Data, opts)
+	if err != nil {
+		cc.log.Info("ERROR ABCI QUERY W OPTIONS")
+		fmt.Println(result)
+		return abci.ResponseQuery{}, err
+	}
+
+	if !result.Response.IsOK() {
+		cc.log.Info("ERROR RESPONSE IS NOT OK")
+		return abci.ResponseQuery{}, sdkErrorToGRPCError(result.Response)
+	}
+
+	// data from trusted node or subspace query doesn't need verification
+	if !opts.Prove || !isQueryStoreWithProof(req.Path) {
+		return result.Response, nil
+	}
+
+	return result.Response, nil
+}
+
 // QueryTendermintProof performs an ABCI query with the given key and returns
 // the value of the query, the proto encoded merkle proof, and the height of
 // the Tendermint block containing the state root. The desired tendermint height
@@ -181,7 +244,7 @@ func (cc *CosmosProvider) QueryTendermintProof(ctx context.Context, height int64
 		Prove:  prove,
 	}
 
-	res, err := cc.QueryABCI(ctx, req)
+	res, err := cc.QueryABCITmp(ctx, req)
 	if err != nil {
 		cc.log.Info("ERROR IN QUERY ABCI")
 		return nil, nil, clienttypes.Height{}, err
